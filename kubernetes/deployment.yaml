@@ -13,9 +13,21 @@ spec:
         app: node-web-app
     spec:
       tolerations:
-      - key: "node-role.kubernetes.io/control-plane"
-        operator: "Exists"
-        effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - worker1
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: node-web-app
           image: ghcr.io/niridoy/node-web-app:21cd143
