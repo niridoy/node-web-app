@@ -1,4 +1,6 @@
-apiVersion: apps/v1
+apiVersion: ap      containers:
+      - name: node-web-app
+        image: ghcr.io/niridoy/node-web-app:latestv1
 kind: Deployment
 metadata:
   name: node-web-app
