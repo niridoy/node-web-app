@@ -18,7 +18,7 @@ spec:
         effect: "NoSchedule"
       containers:
         - name: node-web-app
-          image: ghcr.io/niridoy/node-web-app:7e11a6f
+          image: ghcr.io/niridoy/node-web-app:c7fb64c
           ports:
             - containerPort: 8080
           resources:
