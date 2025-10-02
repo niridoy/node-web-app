@@ -10,16 +10,38 @@ on:
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}
-    # Skip CI on automated commits
-    SKIP_CI: ${{ contains(github.event.head_commit.message, 'Update image tag') }}
 
 jobs:
-    build:
-        # Skip if this is an automated update commit
-        if: ${{ !env.SKIP_CI }}
+    build-pr:
+        if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         permissions:
             contents: read
+            packages: write
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v2
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v4
+              with:
+                  context: .
+                  push: true
+                  tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
+
+    build-and-deploy:
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deployment'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
             packages: write
 
         steps:
