@@ -10,10 +10,9 @@ on:
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}
-    # Skip CI on automated commits
-    SKIP_CI: ${{ contains(github.event.head_commit.message, 'Update image tag') }}
 
 jobs:
+    # ✅ Runs only on PR (no deployment)
     build-pr:
         if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
@@ -32,13 +31,14 @@ jobs:
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Build and push Docker image
+            - name: Build and push PR Docker image
               uses: docker/build-push-action@v4
               with:
                   context: .
                   push: true
                   tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
 
+    # ✅ Runs only after merge (push to deployment)
     build-and-deploy:
         if: github.event_name == 'push' && github.ref == 'refs/heads/deployment'
         runs-on: ubuntu-latest
@@ -59,7 +59,7 @@ jobs:
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Build and push production image
+            - name: Build and push production Docker image
               id: docker_build
               uses: docker/build-push-action@v4
               with:
@@ -69,44 +69,20 @@ jobs:
                       ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
                       ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-            - name: Update Kubernetes manifest
+            - name: Update Kubernetes manifest with new image
               run: |
                   sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" kubernetes/deployment.yaml
 
-            - name: Commit and push changes
+            - name: Commit and push manifest update
               run: |
                   git config --local user.email "github-actions[bot]@users.noreply.github.com"
                   git config --local user.name "github-actions[bot]"
-
-                  git fetch origin deployment
-                  git checkout deployment
-                  git rebase origin/deployment || git rebase --abort
-
                   git add kubernetes/deployment.yaml
-                  git commit -m "chore: update image tag to ${{ github.sha }}" || exit 0
+                  git commit -m "chore: update image tag to ${{ github.sha }}" || echo "No changes to commit"
+                  git pull --rebase origin deployment
                   git push origin deployment
 
-    deploy:
-        needs: build-and-deploy
-        if: github.event_name == 'push' && github.ref == 'refs/heads/deployment'
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
-
-            - name: Update Kubernetes manifests
+            - name: Deploy to Kubernetes
               run: |
-                  sed -i "/image:/c\          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$(git rev-parse --short HEAD)" kubernetes/deployment.yaml
-
-            - name: Commit and push if there are changes
-              run: |
-                  git config --local user.email "github-actions[bot]@users.noreply.github.com"
-                  git config --local user.name "github-actions[bot]"
-                  git add kubernetes/deployment.yaml
-                  git commit -m "chore: update image tag to $(git rev-parse --short HEAD)" || exit 0
-                  git push
+                  # Apply Kubernetes manifests
+                  kubectl apply -f kubernetes/
