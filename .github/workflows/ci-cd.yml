@@ -1,11 +1,11 @@
 name: CI/CD Pipeline
 
 on:
-    push:
-        branches: [deployment]
     pull_request:
         branches: [deployment]
         types: [opened, synchronize, reopened]
+    push:
+        branches: [deployment]
 
 env:
     REGISTRY: ghcr.io
@@ -14,9 +14,8 @@ env:
     SKIP_CI: ${{ contains(github.event.head_commit.message, 'Update image tag') }}
 
 jobs:
-    build:
-        # Skip if this is an automated update commit
-        if: ${{ !env.SKIP_CI }}
+    build-pr:
+        if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -25,66 +24,115 @@ jobs:
         steps:
             - name: Checkout repository
               uses: actions/checkout@v3
-              with:
-                  token: ${{ secrets.PAT_TOKEN }}
-                  fetch-depth: 0
 
-            - name: Log in to the Container registry
+            - name: Log in to GitHub Container Registry
               uses: docker/login-action@v2
               with:
                   registry: ${{ env.REGISTRY }}
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Extract metadata (tags, labels) for Docker
-              id: meta
-              uses: docker/metadata-action@v4
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-                  tags: |
-                      type=sha,format=short
-                      type=raw,value=latest
-
             - name: Build and push Docker image
               uses: docker/build-push-action@v4
               with:
                   context: .
                   push: true
-                  tags: ${{ steps.meta.outputs.tags }}
-                  labels: ${{ steps.meta.outputs.labels }}
+                  tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
 
-    deploy:
-        needs: build
+    build-and-deploy:
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deployment'
         runs-on: ubuntu-latest
-        # Only run on push to deployment branch (merge events) and not from bot
-        if: |
-            github.event_name == 'push' &&
-            github.ref == 'refs/heads/deployment' &&
-            !contains(github.actor, '[bot]')
         permissions:
             contents: write
+            packages: write
 
         steps:
             - name: Checkout repository
               uses: actions/checkout@v3
               with:
-                  token: ${{ secrets.PAT_TOKEN }}
                   fetch-depth: 0
 
-            - name: Update Kubernetes manifests
-              run: |
-                  # Ensure correct apiVersion
-                  sed -i '1c\apiVersion: apps/v1' kubernetes/deployment.yaml
-                  # Update image tag
-                  sed -i "/image:/c\          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$(git rev-parse --short HEAD)" kubernetes/deployment.yaml
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v2
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Commit and push if there are changes
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Build and push production image
+              id: docker_build
+              uses: docker/build-push-action@v4
+              with:
+                  context: .
+                  push: true
+                  tags: |
+                      ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+                      ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+            - name: Update Kubernetes manifest
               run: |
-                  git config --global user.name "GitHub Actions Bot"
-                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+                  sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" kubernetes/deployment.yaml
+
+            - name: Commit and push changes
+              run: |
+                  git config --local user.email "github-actions[bot]@users.noreply.github.com"
+                  git config --local user.name "github-actions[bot]"
                   git add kubernetes/deployment.yaml
-                  git commit -m "Update image tag to ${{ github.sha }}" || exit 0
-                  git remote set-url origin https://${PAT}@github.com/${{ github.repository }}.git
+                  git commit -m "chore: update image tag to ${{ github.sha }}" || exit 0
                   git push
+
+              steps:
+                  - name: Checkout repository
+                    uses: actions/checkout@v3
+                    with:
+                        fetch-depth: 0
+
+                  - name: Log in to the Container registry
+                    uses: docker/login-action@v2
+                    with:
+                        registry: ${{ env.REGISTRY }}
+                        username: ${{ github.actor }}
+                        password: ${{ secrets.GITHUB_TOKEN }}
+
+                  - name: Extract metadata (tags, labels) for Docker
+                    id: meta
+                    uses: docker/metadata-action@v4
+                    with:
+                        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                        tags: |
+                            type=sha,format=short
+                            type=raw,value=latest
+
+                  - name: Build and push Docker image
+                    uses: docker/build-push-action@v4
+                    with:
+                        context: .
+                        push: true
+                        tags: ${{ steps.meta.outputs.tags }}
+                        labels: ${{ steps.meta.outputs.labels }}
+
+        deploy:
+            needs: build
+            if: github.event_name == 'push' && github.ref == 'refs/heads/deployment'
+            runs-on: ubuntu-latest
+            permissions:
+                contents: write
+
+            steps:
+                - name: Checkout repository
+                  uses: actions/checkout@v3
+                  with:
+                      fetch-depth: 0
+
+                - name: Update Kubernetes manifests
+                  run: |
+                      # Update image tag in deployment manifest
+                      sed -i "/image:/c\          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$(git rev-parse --short HEAD)" kubernetes/deployment.yaml
+
+                - name: Commit and push if there are changes
+                  run: |
+                      git config --local user.email "github-actions[bot]@users.noreply.github.com"
+                      git config --local user.name "github-actions[bot]"
+                      git add kubernetes/deployment.yaml
+                      git commit -m "chore: update image tag to $(git rev-parse --short HEAD)" || exit 0
+                      git push
