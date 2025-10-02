@@ -29,7 +29,7 @@ jobs:
               with:
                   registry: ${{ env.REGISTRY }}
                   username: ${{ github.actor }}
-                  password: ${{ secrets.GITHUB_TOKEN }}
+                  password: ${{ secrets.PAT_TOKEN }}
 
             - name: Extract metadata (tags, labels) for Docker
               id: meta
@@ -37,9 +37,8 @@ jobs:
               with:
                   images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
                   tags: |
-                      type=sha,format=long
-                      type=ref,event=branch
-                      latest
+                      type=sha,format=short
+                      type=raw,value=latest
 
             - name: Build and push Docker image
               uses: docker/build-push-action@v4
