@@ -40,6 +40,11 @@ jobs:
     build-and-deploy:
         if: github.event_name == 'push' && github.ref == 'refs/heads/deployment'
         runs-on: ubuntu-latest
+        # Only run on push to deployment branch (merge events) and not from bot
+        if: |
+            github.event_name == 'push' &&
+            github.ref == 'refs/heads/deployment' &&
+            !contains(github.actor, '[bot]')
         permissions:
             contents: write
             packages: write
