@@ -10,10 +10,11 @@ on:
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}
+    # Skip CI on automated commits
+    SKIP_CI: ${{ contains(github.event.head_commit.message, 'Update image tag') }}
 
 jobs:
-    build-pr:
-        if: github.event_name == 'pull_request'
+    build:
         runs-on: ubuntu-latest
         permissions:
             contents: read
