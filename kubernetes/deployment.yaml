@@ -12,14 +12,13 @@ spec:
       labels:
         app: node-web-app
     spec:
-      # Add toleration for control-plane node
       tolerations:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
         effect: "NoSchedule"
       containers:
         - name: node-web-app
-          image: ghcr.io/niridoy/node-web-app:$(git rev-parse --short HEAD)
+          image: ghcr.io/niridoy/node-web-app:latest
           ports:
             - containerPort: 8080
           resources:
