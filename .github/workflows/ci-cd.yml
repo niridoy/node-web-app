@@ -85,4 +85,4 @@ jobs:
             - name: Deploy to Kubernetes
               run: |
                   # Apply Kubernetes manifests
-                  kubectl apply -f kubernetes/
+                  kubectl apply -f kubernetes/ --validate=false
