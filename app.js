@@ -10,6 +10,10 @@ app.get('/', (req, res) => {
     res.send('Hello World from Node.js Web App 02!\n');
 });
 
+app.get('/about', (req, res) => {
+    res.send('About details!\n');
+});
+
 app.get('/api/health-check', (req, res) => {
     res.send('Application running & up with argocd!\n');
 });
