@@ -11,7 +11,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health-check', (req, res) => {
-    res.send('Application running & up 200!\n');
+    res.send('Application running & up!\n');
 });
 
 app.listen(PORT, HOST);
