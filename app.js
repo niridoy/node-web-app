@@ -1,4 +1,5 @@
-const express = require('express');
+const exapp.get('/', (req, res) => {
+  res.send('Welcome to our Node.js Application - Deployed with ArgoCD and GitHub Actions!\n');ess = require('express');
 
 // Constants
 const PORT = 8080;
