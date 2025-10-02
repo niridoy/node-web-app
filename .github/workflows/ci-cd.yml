@@ -67,7 +67,10 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$IMAGE_TAG|" kubernetes/deployment.yaml
+          # Ensure correct apiVersion
+          sed -i '1c\apiVersion: apps/v1' kubernetes/deployment.yaml
+          # Update image tag
+          sed -i '/image:/c\          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$IMAGE_TAG' kubernetes/deployment.yaml
 
       - name: Commit and push if there are changes
         env:
