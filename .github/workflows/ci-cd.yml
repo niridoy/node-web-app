@@ -82,6 +82,12 @@ jobs:
                   git pull --rebase origin deployment
                   git push origin deployment
 
+            - name: Set up kubeconfig
+              run: |
+                  mkdir -p $HOME/.kube
+                  echo "${{ secrets.KUBECONFIG_DATA }}" > $HOME/.kube/config
+                  chmod 600 $HOME/.kube/config
+
             - name: Deploy to Kubernetes
               run: |
                   # Apply Kubernetes manifests
