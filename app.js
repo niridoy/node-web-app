@@ -14,6 +14,14 @@ app.get('/about', (req, res) => {
     res.send('About details!\n');
 });
 
+app.get('/contact', (req, res) => {
+    res.send('About contact!\n');
+});
+
+app.get('/me', (req, res) => {
+    res.send('About me!\n');
+});
+
 app.get('/api/health-check', (req, res) => {
     res.send('Application running & up with argocd!\n');
 });
