@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: node-web-app
-          image: ghcr.io/niridoy/node-web-app@sha256:6a2e1b58b0fefbeadcdb7bf9a2fe4f9b8288d379
+          image: ghcr.io/niridoy/node-web-app@sha256:f7f3071e500ba501d5cdf62f32f73028e5718476
           ports:
             - containerPort: 8080
           resources:
