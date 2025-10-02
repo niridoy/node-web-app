@@ -56,6 +56,9 @@ jobs:
     permissions:
       contents: write
 
+    # This job runs only on direct pushes to deployment branch
+    # For pull requests, the build-and-push job will verify the build
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
