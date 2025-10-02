@@ -10,5 +10,9 @@ app.get('/', (req, res) => {
     res.send('Hello World from Node.js Web App!\n');
 });
 
+app.get('/api/health-check', (req, res) => {
+    res.send('Application running & up!\n');
+});
+
 app.listen(PORT, HOST);
 console.log(`Running on http://${HOST}:${PORT}`);
