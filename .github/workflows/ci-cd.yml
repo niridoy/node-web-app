@@ -13,8 +13,6 @@ env:
 
 jobs:
     build:
-        # Skip if commit is from GitHub Actions Bot
-        if: github.event.commits[0].author.name != 'GitHub Actions Bot'
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -32,7 +30,7 @@ jobs:
               with:
                   registry: ${{ env.REGISTRY }}
                   username: ${{ github.actor }}
-                  password: ${{ secrets.PAT_TOKEN }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Extract metadata (tags, labels) for Docker
               id: meta
@@ -54,7 +52,11 @@ jobs:
     deploy:
         needs: build
         runs-on: ubuntu-latest
-        if: github.ref == 'refs/heads/deployment' && github.event_name == 'push' && github.event.commits[0].author.name != 'GitHub Actions Bot'
+        # Only run on push to deployment branch (merge events) and not from bot
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/deployment' &&
+          !contains(github.actor, '[bot]')
         permissions:
             contents: write
 
@@ -74,7 +76,7 @@ jobs:
 
             - name: Commit and push if there are changes
               env:
-                  PAT: ${{ secrets.PAT_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   git config --global user.name "GitHub Actions Bot"
                   git config --global user.email "github-actions[bot]@users.noreply.github.com"
