@@ -30,7 +30,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: node-web-app
-          image: ghcr.io/niridoy/node-web-app:bf63fa8540ac11ba1122ecd24ad0159cb6adb109
+          image: ghcr.io/niridoy/node-web-app:5f96b27dae92c7e6d1a80fc83e02b22910c4a2a2
           ports:
             - containerPort: 8080
           resources:
