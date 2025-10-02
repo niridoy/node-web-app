@@ -1,6 +1,6 @@
 apiVersion: ap      containers:
       - name: node-web-app
-        image: ghcr.io/niridoy/node-web-app@sha256:597eedbc5b4ebd364dda7eca6a62d36db3fa145e
+        image: ghcr.io/niridoy/node-web-app@sha256:3246c0ca27ab92a7354a0959b17cb35f3ed25419
 kind: Deployment
 metadata:
   name: node-web-app
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: node-web-app
-          image: ghcr.io/niridoy/node-web-app@sha256:597eedbc5b4ebd364dda7eca6a62d36db3fa145e
+          image: ghcr.io/niridoy/node-web-app@sha256:3246c0ca27ab92a7354a0959b17cb35f3ed25419
           ports:
             - containerPort: 8080
           resources:
