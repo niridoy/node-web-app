@@ -5,16 +5,17 @@ on:
         branches: [deployment]
     pull_request:
         branches: [deployment]
+        types: [opened, synchronize, reopened]
 
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-    build-and-push:
+    build:
         runs-on: ubuntu-latest
         permissions:
-            contents: write
+            contents: read
             packages: write
 
         steps:
@@ -49,9 +50,9 @@ jobs:
                   labels: ${{ steps.meta.outputs.labels }}
 
     deploy:
-        needs: build-and-push
+        needs: build
         runs-on: ubuntu-latest
-        if: github.ref == 'refs/heads/deployment'
+        if: github.ref == 'refs/heads/deployment' && github.event_name == 'push'
         permissions:
             contents: write
 
