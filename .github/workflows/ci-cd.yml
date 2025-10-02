@@ -13,6 +13,8 @@ env:
 
 jobs:
     build:
+        # Skip if commit is from GitHub Actions Bot
+        if: github.event.commits[0].author.name != 'GitHub Actions Bot'
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -52,7 +54,7 @@ jobs:
     deploy:
         needs: build
         runs-on: ubuntu-latest
-        if: github.ref == 'refs/heads/deployment' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/deployment' && github.event_name == 'push' && github.event.commits[0].author.name != 'GitHub Actions Bot'
         permissions:
             contents: write
 
