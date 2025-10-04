@@ -22,6 +22,10 @@ app.get('/me', (req, res) => {
     res.send('About me!\n');
 });
 
+app.get('/projects', (req, res) => {
+    res.send('projects!\n');
+});
+
 app.get('/api/health-check', (req, res) => {
     res.send('Application running & up with argocd!\n');
 });
