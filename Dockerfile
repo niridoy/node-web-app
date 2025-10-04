@@ -1,18 +1,15 @@
-FROM node:18
+FROM node:18-alpine
 
-# Create app directory
 WORKDIR /usr/src/app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
+# Copy package.json and package-lock.json first
 COPY package*.json ./
 
-RUN npm install
+# Install dependencies
+RUN npm install --production
 
-# Bundle app source
+# Copy the rest of the app
 COPY . .
 
-# Your app binds to port 8080 so you'll use the EXPOSE instruction to have it mapped by the docker daemon
 EXPOSE 8080
-
-CMD [ "node", "app.js" ]
+CMD ["node", "app.js"]
