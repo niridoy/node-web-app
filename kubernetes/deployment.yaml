@@ -40,17 +40,20 @@ spec:
             limits:
               memory: "64Mi"
               cpu: "100m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: node-web-app
-spec:
-  type: NodePort
-  ports:
-    - port: 80
-      targetPort: 8080
-      protocol: TCP
-  selector:
-    app: node-web-app
-# Last updated: Thu 02 Oct 2025 04:46:30 PM +06
+          env:
+            - name: DB_HOST
+              value: mysql
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-password
+            - name: DB_NAME
+              value: node_app_db
