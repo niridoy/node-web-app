@@ -2,7 +2,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const sqlite3 = require('sqlite3').verbose();
+const mysql = require('mysql2/promise'); // use promise-based mysql
 const bodyParser = require('body-parser');
 
 const app = express();
@@ -12,20 +12,38 @@ const JWT_SECRET = 'your_jwt_secret_key'; // Change this to a strong secret
 
 app.use(bodyParser.json());
 
-// Initialize SQLite database
-const db = new sqlite3.Database(':memory:'); // In-memory database for demo
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+// MySQL connection pool
+const pool = mysql.createPool({
+    host: 'mysql',           // service name in docker-compose / k8s
+    user: 'user',            // from secret (base64 decoded)
+    password: 'password',    // from secret (base64 decoded)
+    database: 'appdb',       // you should create this database in MySQL
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
+
+// Ensure users table exists
+(async () => {
+    try {
+        const conn = await pool.getConnection();
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                first_name VARCHAR(100) NOT NULL,
+                last_name VARCHAR(100) NOT NULL,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        conn.release();
+        console.log('✅ MySQL users table ready');
+    } catch (err) {
+        console.error('❌ Error initializing database:', err.message);
+        process.exit(1);
+    }
+})();
 
 // Registration Endpoint
 app.post('/api/register', async (req, res) => {
@@ -35,48 +53,40 @@ app.post('/api/register', async (req, res) => {
     }
 
     try {
-        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Save user to database
-        db.run(
+        const [result] = await pool.query(
             `INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)`,
-            [first_name, last_name, email, hashedPassword],
-            function (err) {
-                if (err) {
-                    if (err.message.includes('UNIQUE constraint failed')) {
-                        return res.status(400).json({ message: 'Email already registered' });
-                    }
-                    return res.status(500).json({ message: 'Database error', error: err.message });
-                }
-                res.status(201).json({ message: 'User registered successfully', user_id: this.lastID });
-            }
+            [first_name, last_name, email, hashedPassword]
         );
+        res.status(201).json({ message: 'User registered successfully', user_id: result.insertId });
     } catch (err) {
-        res.status(500).json({ message: 'Server error', error: err.message });
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: 'Email already registered' });
+        }
+        res.status(500).json({ message: 'Database error', error: err.message });
     }
 });
 
 // Login Endpoint
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Fetch user from database
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-        if (err) return res.status(500).json({ message: 'Database error', error: err.message });
-        if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    try {
+        const [rows] = await pool.query(`SELECT * FROM users WHERE email = ?`, [email]);
+        if (rows.length === 0) return res.status(400).json({ message: 'Invalid credentials' });
 
-        // Compare password
+        const user = rows[0];
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.status(400).json({ message: 'Invalid credentials' });
 
-        // Create JWT token
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
         res.json({ message: 'Login successful', token });
-    });
+    } catch (err) {
+        res.status(500).json({ message: 'Database error', error: err.message });
+    }
 });
 
 // Protected route example
@@ -99,5 +109,5 @@ app.get('/api/health-check', (req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
-    console.log(`Running on http://${HOST}:${PORT}`);
+    console.log(`🚀 Running on http://${HOST}:${PORT}`);
 });
